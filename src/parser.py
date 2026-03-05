@@ -108,6 +108,11 @@ def parse_schedule(raw_text):
                 - "location": room or building or null if unknown
                 - "professor": professor name or null if unknown
                 - "type": one of "class", "exam", "assignment", "office_hours", "other"
+                - "semester_start": the first date of the semester e.g. "2025-01-13" or null if unknown
+                - "semester_end": the last date of the semester e.g. "2025-05-10" or null if unknown
+                
+                For recurring classes always try to find the semester start and end dates from the screenshot.
+                If you cannot find them, make a reasonable guess based on the current date and typical semester length.
                 """
                 # This is a "system" message — it sets the rules for how
                 # the AI should behave for this entire conversation.
@@ -172,6 +177,8 @@ def display_events(events):
     table.add_column("Date", width=12)
     table.add_column("Time", width=20)
     table.add_column("Location", width=15)
+    table.add_column("Sem Start", width=12)
+    table.add_column("Sem End", width=12)
     # Each column has a name and optional width and color.
     # "style" sets the color of the text in that column.
 
@@ -200,11 +207,9 @@ def display_events(events):
             days,
             event.get("date") or "",
             time,
-            event.get("location") or ""
-            # Add one row to the table for this event.
-            # event.get("field", "default") safely gets the value
-            # and returns a default if it doesn't exist.
-            # "or ''" converts None to empty string so table looks clean.
+            event.get("location") or "",
+            event.get("semester_start") or "",
+            event.get("semester_end") or ""
         )
 
     console.print(table)
