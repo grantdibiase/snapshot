@@ -1,0 +1,150 @@
+/* ============================================================
+   Upload.css
+   ============================================================ */
+
+.upload-container {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.upload-header {
+  text-align: center;
+}
+
+.upload-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* Purple gradient text effect */
+}
+
+.upload-subtitle {
+  color: #a1a1aa;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.dropzone {
+  width: 100%;
+  border: 2px dashed #3f3f46;
+  border-radius: 16px;
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: #18181b;
+}
+
+.dropzone:hover {
+  border-color: #6366f1;
+  background-color: #1c1c27;
+}
+
+.dropzone-active {
+  border-color: #6366f1;
+  background-color: #1c1c27;
+  /* Highlight when dragging over */
+}
+
+.dropzone-text {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: 500;
+  text-align: center;
+}
+
+.dropzone-hint {
+  font-size: 13px;
+  color: #71717a;
+}
+
+.file-list {
+  width: 100%;
+  background-color: #18181b;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-list-title {
+  font-size: 13px;
+  color: #71717a;
+  margin-bottom: 4px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: #27272a;
+  border-radius: 8px;
+}
+
+.file-name {
+  flex: 1;
+  font-size: 14px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Show "..." if filename is too long */
+}
+
+.file-size {
+  font-size: 12px;
+  color: #71717a;
+}
+
+.file-remove {
+  background: none;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.file-remove:hover {
+  color: #ef4444;
+  /* Red on hover */
+}
+
+.upload-error {
+  width: 100%;
+  background-color: #2d1515;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.upload-loading-hint {
+  font-size: 13px;
+  color: #71717a;
+  text-align: center;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  /* Spinning animation for the loader icon */
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

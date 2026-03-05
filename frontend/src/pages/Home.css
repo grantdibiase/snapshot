@@ -1,0 +1,71 @@
+/* ============================================================
+   Home.css
+   ============================================================ */
+
+.home {
+  width: 100%;
+  max-width: 900px;
+  /* Limit width so content doesn't stretch too wide */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+/* Step indicator bar at the top */
+.steps-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.4;
+  /* Inactive steps are faded out */
+  transition: opacity 0.3s;
+}
+
+.step.active {
+  opacity: 1;
+  /* Active steps are fully visible */
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  /* Makes it a circle */
+  background-color: #27272a;
+  border: 2px solid #3f3f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.step.active .step-number {
+  background-color: #6366f1;
+  /* Purple circle for active step */
+  border-color: #6366f1;
+}
+
+.step span {
+  font-size: 12px;
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.step-line {
+  width: 80px;
+  height: 2px;
+  background-color: #27272a;
+  margin-bottom: 20px;
+  /* Push line up to align with circles */
+}

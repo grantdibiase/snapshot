@@ -1,0 +1,83 @@
+/* ============================================================
+   App.css
+   Global styles that apply to the whole app.
+   ============================================================ */
+
+/* Reset default browser styles so everything looks consistent */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  /* box-sizing: border-box means padding is included in width calculations
+     which makes layout math much easier */
+}
+
+body {
+  /* Main font and background for the whole app */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #0f0f0f;
+  /* Dark background */
+  color: #ffffff;
+  /* White text */
+  min-height: 100vh;
+  /* At least full screen height */
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  /* Stack navbar on top, content below */
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  /* Takes up all remaining space below the navbar */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Center content horizontally */
+  padding: 40px 20px;
+}
+
+/* Reusable button styles we'll use throughout the app */
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  /* Purple gradient */
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  /* Smooth fade on hover */
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  /* Gray out button when disabled */
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #a1a1aa;
+  border: 1px solid #3f3f46;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}

@@ -1,0 +1,127 @@
+/* ============================================================
+   Success.css
+   ============================================================ */
+
+.success-container {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  text-align: center;
+}
+
+.success-icon {
+  animation: pop 0.4s ease-out;
+  /* Quick pop animation when it appears */
+}
+
+@keyframes pop {
+  0% { transform: scale(0); opacity: 0; }
+  80% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-title {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #ffffff;
+}
+
+.success-subtitle {
+  color: #a1a1aa;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.btn-success-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  /* Green gradient */
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  /* Remove underline since this is an <a> tag */
+  transition: opacity 0.2s;
+}
+
+.btn-success-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-success-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: #a1a1aa;
+  border: 1px solid #3f3f46;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-success-secondary:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.success-tips {
+  width: 100%;
+  background-color: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+}
+
+.success-tips-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.success-tips ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.success-tips li {
+  font-size: 13px;
+  color: #71717a;
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.success-tips li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #6366f1;
+  /* Purple arrow before each tip */
+}

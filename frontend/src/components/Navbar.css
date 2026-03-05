@@ -1,0 +1,43 @@
+/* ============================================================
+   Navbar.css
+   Styles for the navigation bar
+   ============================================================ */
+
+.navbar {
+  width: 100%;
+  background-color: #18181b;
+  /* Slightly lighter than the page background */
+  border-bottom: 1px solid #27272a;
+  /* Subtle bottom border */
+  padding: 16px 32px;
+}
+
+.navbar-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  /* Center the content with a max width */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* Logo on left, tagline on right */
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Space between icon and text */
+}
+
+.navbar-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.navbar-tagline {
+  font-size: 14px;
+  color: #71717a;
+  /* Muted gray color */
+}

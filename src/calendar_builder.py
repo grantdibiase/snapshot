@@ -247,3 +247,38 @@ def create_calendar_events(events):
     console.print(f"\n[bold green]Done! Created {created} events.[/bold green]")
     if failed > 0:
         console.print(f"[bold red]{failed} events failed — check the errors above.[/bold red]")
+    def create_calendar_events_with_creds(events, creds):
+    # --------------------------------------------------------
+    # Same as create_calendar_events() but accepts credentials
+    # passed in directly instead of reading from token.json.
+    # This is used by the web app where each user has their
+    # own credentials instead of one shared token.json file.
+    # --------------------------------------------------------
+        console.print("\n[bold blue]Connecting to Google Calendar...[/bold blue]")
+
+        service = build("calendar", "v3", credentials=creds)
+
+        console.print("[bold green]Connected! Creating your events...[/bold green]\n")
+
+        created = 0
+        failed = 0
+
+        for event in events:
+            try:
+                google_event = format_event_for_google(event)
+
+                service.events().insert(
+                    calendarId="primary",
+                    body=google_event
+                ).execute()
+
+                created += 1
+                console.print(f"[green]✓[/green] Created: {event.get('title', 'Untitled')}")
+
+            except Exception as e:
+                failed += 1
+                console.print(f"[red]✗[/red] Failed: {event.get('title', 'Untitled')} — {str(e)}")
+
+        console.print(f"\n[bold green]Done! Created {created} events.[/bold green]")
+        if failed > 0:
+            console.print(f"[bold red]{failed} events failed.[/bold red]")
