@@ -69,57 +69,50 @@ def main():
     # --- STEP 1: GET THE SCREENSHOT PATH ---
 
     if len(sys.argv) < 2:
-        # sys.argv is a list of everything typed in the terminal.
-        # sys.argv[0] is always "main.py" (the script name).
-        # sys.argv[1] would be the screenshot path the user typed.
-        # If len(sys.argv) < 2 it means they didn't give us a screenshot.
-
-        console.print("[bold red]Error: Please provide a screenshot path![/bold red]")
-        console.print("Usage: [bold]python main.py path/to/screenshot.png[/bold]\n")
-        console.print("Example: [bold]python main.py samples/schedule.png[/bold]\n")
+        console.print("[bold red]Error: Please provide at least one screenshot path![/bold red]")
+        console.print("Usage: [bold]python main.py screenshot1.png screenshot2.png[/bold]\n")
+        console.print("Example: [bold]python main.py samples/schedule.png samples/syllabus.png[/bold]\n")
         sys.exit(1)
-        # sys.exit(1) stops the program immediately.
-        # The "1" means "stopped due to an error" (0 would mean success).
 
-    image_path = sys.argv[1]
-    # Grab the screenshot path the user typed in the terminal.
+    # Grab ALL the screenshot paths the user typed
+    # sys.argv[1:] means "everything after main.py"
+    # so "python main.py a.png b.png" gives us ["a.png", "b.png"]
+    image_paths = sys.argv[1:]
 
-    if not os.path.exists(image_path):
-        # Check if the file actually exists at that path.
-        # If the user made a typo we want to tell them clearly.
-
-        console.print(f"[bold red]Error: Could not find file '{image_path}'[/bold red]")
-        console.print("Make sure the path is correct and the file exists.\n")
-        sys.exit(1)
+    # Check every file exists before we start
+    for image_path in image_paths:
+        if not os.path.exists(image_path):
+            console.print(f"[bold red]Error: Could not find file '{image_path}'[/bold red]")
+            console.print("Make sure the path is correct and the file exists.\n")
+            sys.exit(1)
 
 
     # --- STEP 2: READ THE SCREENSHOT ---
 
-    console.print(f"[bold]Screenshot:[/bold] {image_path}\n")
+    # Loop through every screenshot and extract text from each one
+    # then combine it all into one big string
+    all_raw_text = ""
 
-    try:
-        # "try" means attempt this code and if anything goes wrong
-        # jump to the "except" block below instead of crashing.
+    for image_path in image_paths:
+        console.print(f"[bold]Reading screenshot:[/bold] {image_path}\n")
 
-        raw_text = extract_text_from_screenshot(image_path)
-        # Call reader.py's function to extract all text from the screenshot.
-        # This sends the image to OpenAI and gets back a big string of text.
+        try:
+            raw_text = extract_text_from_screenshot(image_path)
+            all_raw_text += raw_text + "\n\n"
+            # We add \n\n between each screenshot's text
+            # so the parser knows they're separate screenshots
+            console.print(f"[bold green]✓ {image_path} read successfully![/bold green]\n")
 
-        console.print("[bold green]✓ Screenshot read successfully![/bold green]\n")
-
-    except Exception as e:
-        # If anything went wrong in reader.py catch it here.
-        # "e" contains the error message explaining what went wrong.
-
-        console.print(f"[bold red]Error reading screenshot: {str(e)}[/bold red]")
-        console.print("Make sure your OPENAI_API_KEY is set in your .env file.\n")
-        sys.exit(1)
+        except Exception as e:
+            console.print(f"[bold red]Error reading {image_path}: {str(e)}[/bold red]")
+            console.print("Make sure your OPENAI_API_KEY is set in your .env file.\n")
+            sys.exit(1)
 
 
     # --- STEP 3: PARSE THE TEXT INTO EVENTS ---
 
     try:
-        events = parse_schedule(raw_text)
+        events = parse_schedule(all_raw_text)
         # Call parser.py's function to turn the raw text into
         # a clean structured list of events.
 

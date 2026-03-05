@@ -130,14 +130,18 @@ def parse_schedule(raw_text):
     )
 
     raw_json = response.choices[0].message.content
-    # Get the text response back from OpenAI.
-    # At this point raw_json is a STRING that looks like JSON
-    # but Python doesn't know that yet — it's just text to Python.
+    # Print what OpenAI sent back so we can see what's happening
+    console.print(f"\n[dim]Raw response: {raw_json}[/dim]\n")
 
-    events = json.loads(raw_json)
-    # json.loads() converts the JSON string into a real Python list.
-    # After this line "events" is an actual Python list of dictionaries
-    # that we can loop through and work with properly.
+    # Sometimes OpenAI wraps JSON in ```json ``` code blocks
+    # This strips those out if present
+    raw_json = raw_json.strip()
+    if raw_json.startswith("```"):
+        raw_json = raw_json.split("```")[1]
+        if raw_json.startswith("json"):
+            raw_json = raw_json[4:]
+
+    events = json.loads(raw_json.strip())
 
     return events
     # Send the list of events back to whoever called this function.
