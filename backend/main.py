@@ -42,6 +42,7 @@ app.add_middleware(
         "http://localhost:3002",
         "http://localhost:3003",
         "https://snapshot-cxv35vipn-grantdibiases-projects.vercel.app",
+        "https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -241,15 +242,16 @@ async def google_callback(code: str, state: str, request: Request):
 
         # Redirect back to the frontend with the session ID
         return RedirectResponse(
-            url=f"https://snapshot-cxv35vipn-grantdibiases-projects.vercel.app/confirm?session_id={session_id}&auth=success"
+            url=f"https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app/confirm?session_id={session_id}&auth=success"
         )
 
     except Exception as e:
         print(f"[CALLBACK] ✗ ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
+
         return RedirectResponse(
-            url=f"https://snapshot-cxv35vipn-grantdibiases-projects.vercel.app/confirm?auth=error&message={str(e)}"
+            url=f"https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app/confirm?auth=error&message={str(e)}"
         )
 
 
