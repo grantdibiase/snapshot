@@ -70,8 +70,8 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
           : "Google authentication failed. Please try again."
       );
     }
-  }, [events.length, setEvents]);
-  // The empty [] means this only runs once when component loads
+  }, [events, setEvents]);
+  // Include events in dependency array since we check events.length
 
   const handleConnectGoogle = async () => {
     // --------------------------------------------------------
