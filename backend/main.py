@@ -221,3 +221,46 @@ async def confirm_events(request: ConfirmRequest):
             status_code=500,
             content={"status": "error", "detail": str(e)}
         )
+
+
+# --- TEST ENDPOINT (for debugging without OAuth) ---
+
+@app.post("/test/confirm")
+async def test_confirm_events(request: ConfirmRequest):
+    # --------------------------------------------------------
+    # DEBUG ENDPOINT: Test event creation without OAuth flow.
+    # Uses the token.json file directly.
+    # Remove this endpoint in production!
+    # --------------------------------------------------------
+    try:
+        if not os.path.exists("token.json"):
+            raise Exception("token.json not found. Please authenticate first.")
+
+        with open("token.json", "r") as f:
+            token_data = json.load(f)
+
+        creds = Credentials(
+            token=token_data.get("token"),
+            refresh_token=token_data.get("refresh_token"),
+            token_uri=token_data.get("token_uri"),
+            client_id=token_data.get("client_id"),
+            client_secret=token_data.get("client_secret"),
+            scopes=token_data.get("scopes", SCOPES),
+        )
+
+        from src.calendar_builder import create_calendar_events_with_creds
+        create_calendar_events_with_creds(
+            [event.dict() for event in request.events],
+            creds
+        )
+
+        return JSONResponse(content={"status": "success"})
+
+    except Exception as e:
+        print(f"TEST ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "detail": str(e)}
+        )

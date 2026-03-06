@@ -135,6 +135,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     } catch (err) {
       setError(
         err.response?.data?.detail ||
+        err.message ||
         "Something went wrong adding events to Google Calendar."
       );
     } finally {

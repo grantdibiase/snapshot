@@ -264,6 +264,8 @@ def create_calendar_events_with_creds(events, creds):
     created = 0
     failed = 0
 
+    errors = []
+
     for event in events:
         try:
             google_event = format_event_for_google(event)
@@ -278,8 +280,15 @@ def create_calendar_events_with_creds(events, creds):
 
         except Exception as e:
             failed += 1
-            console.print(f"[red]✗[/red] Failed: {event.get('title', 'Untitled')} — {str(e)}")
+            err_msg = str(e)
+            errors.append({
+                "title": event.get("title", "Untitled"),
+                "error": err_msg,
+            })
+            console.print(f"[red]✗[/red] Failed: {event.get('title', 'Untitled')} — {err_msg}")
 
     console.print(f"\n[bold green]Done! Created {created} events.[/bold green]")
     if failed > 0:
         console.print(f"[bold red]{failed} events failed.[/bold red]")
+        error_details = "; ".join([f"{e['title']}: {e['error']}" for e in errors])
+        raise Exception(f"{failed} events failed to create: {error_details}")
