@@ -26,10 +26,22 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
 
   useEffect(() => {
     // --------------------------------------------------------
-    // useEffect runs when the component first loads.
-    // We check the URL for a session_id and auth status
-    // that Google's redirect added after login.
+    // When the user returns from Google, the SPA reloads and we
+    // may lose the in-memory event list. Persist events locally
+    // so we can restore after the OAuth redirect.
     // --------------------------------------------------------
+    const stored = localStorage.getItem("snapshot_events");
+    if (stored && events.length === 0) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEvents(parsed);
+        }
+      } catch {
+        // ignore bad JSON
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     // window.location.search gets the "?session_id=...&auth=success"
     // part of the URL. URLSearchParams parses it into key/value pairs.
@@ -48,18 +60,25 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     }
 
     if (auth === "error") {
-      setError("Google authentication failed. Please try again.");
+      const msg = params.get("message");
+      setError(
+        msg
+          ? `Google authentication failed: ${decodeURIComponent(msg)}`
+          : "Google authentication failed. Please try again."
+      );
     }
-  }, []);
+  }, [events.length, setEvents]);
   // The empty [] means this only runs once when component loads
 
   const handleConnectGoogle = async () => {
     // --------------------------------------------------------
     // Called when user clicks "Connect Google Calendar".
-    // Asks our backend for the Google login URL then
-    // redirects the user there.
+    // We persist the current events to localStorage so they
+    // survive the redirect back from Google's login page.
     // --------------------------------------------------------
     try {
+      localStorage.setItem("snapshot_events", JSON.stringify(events));
+
       const response = await axios.get("http://localhost:8000/auth/google");
       window.location.href = response.data.auth_url;
       // Redirect the user to Google's login page!
@@ -110,6 +129,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
         // Send session_id so backend knows whose calendar to use
       });
 
+      localStorage.removeItem("snapshot_events");
       onConfirmComplete();
 
     } catch (err) {

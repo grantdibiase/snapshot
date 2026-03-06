@@ -1,4 +1,6 @@
-# ============================================================
+from pathlib import Path
+path = Path(r"c:\Users\Grant DiBiase\snapshot\backend\main.py")
+new_code = '''# ============================================================
 # backend/main.py
 # ============================================================
 # Updated with proper OAuth redirect flow for web users.
@@ -120,7 +122,7 @@ async def upload_screenshots(files: List[UploadFile] = File(...)):
 @app.get("/auth/google")
 async def google_auth():
     # --------------------------------------------------------
-    # Step 1 of OAuth â€” generate the Google login URL and
+    # Step 1 of OAuth — generate the Google login URL and
     # send it back to the frontend so it can redirect the user.
     # --------------------------------------------------------
     flow = Flow.from_client_secrets_file(
@@ -144,7 +146,7 @@ async def google_auth():
 @app.get("/auth/callback")
 async def google_callback(code: str, state: str):
     # --------------------------------------------------------
-    # Step 2 of OAuth â€” Google redirects the user back here
+    # Step 2 of OAuth — Google redirects the user back here
     # after they log in. We exchange the code for credentials.
     # --------------------------------------------------------
     try:
@@ -221,3 +223,7 @@ async def confirm_events(request: ConfirmRequest):
             status_code=500,
             content={"status": "error", "detail": str(e)}
         )
+'''
+
+path.write_text(new_code, encoding='utf-8')
+print('main.py rewritten')

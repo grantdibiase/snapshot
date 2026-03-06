@@ -27,12 +27,26 @@ import Success from "../components/Success";
 import "./Home.css";
 
 function Home({ startAtStep }) {
-  const [step, setStep] = useState(startAtStep || 1);
+  const [step, setStep] = useState(() => {
+    // Restore step from localStorage so we don't lose progress
+    // when the app reloads (e.g., after OAuth redirect).
+    const saved = window.localStorage.getItem("snapshot_step");
+    return saved ? Number(saved) : startAtStep || 1;
+  });
   // "step" tracks which step we're on (1, 2, or 3)
-  // "setStep" is the function we call to change the step
-  // useState(1) means we start on step 1
 
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(() => {
+    // Restore events from localStorage so we don't lose them after a reload.
+    const saved = window.localStorage.getItem("snapshot_events");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
   // "events" stores the list of events the AI found
   // starts as empty array, gets filled after upload
 
@@ -43,10 +57,10 @@ function Home({ startAtStep }) {
     // We save the events and move to step 2.
     // --------------------------------------------------------
     setEvents(extractedEvents);
-    // Save the events the AI found
+    window.localStorage.setItem("snapshot_events", JSON.stringify(extractedEvents));
 
     setStep(2);
-    // Move to the confirmation step
+    window.localStorage.setItem("snapshot_step", "2");
   };
 
   const handleConfirmComplete = () => {
@@ -56,6 +70,9 @@ function Home({ startAtStep }) {
     // We move to the success screen.
     // --------------------------------------------------------
     setStep(3);
+    window.localStorage.setItem("snapshot_step", "3");
+    // Cleanup events once we're done (so the user can start fresh later).
+    window.localStorage.removeItem("snapshot_events");
   };
 
   const handleStartOver = () => {
@@ -65,6 +82,8 @@ function Home({ startAtStep }) {
     // --------------------------------------------------------
     setEvents([]);
     setStep(1);
+    window.localStorage.removeItem("snapshot_events");
+    window.localStorage.setItem("snapshot_step", "1");
   };
 
   return (

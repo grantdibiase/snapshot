@@ -49,7 +49,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 # We store the user's credentials in memory temporarily.
 # In a real production app you'd store these in a database.
-# In this demo it is fine for short-lived sessions.
+# For now this works fine for local and small scale use.
 user_credentials = {}
 
 
@@ -66,7 +66,6 @@ class Event(BaseModel):
     professor: Optional[str] = None
     semester_start: Optional[str] = None
     semester_end: Optional[str] = None
-
 
 class ConfirmRequest(BaseModel):
     events: List[Event]
@@ -127,11 +126,14 @@ async def google_auth():
         "credentials.json",
         scopes=SCOPES,
         redirect_uri="http://localhost:8000/auth/callback"
+        # After login Google sends the user back to this URL
     )
 
     auth_url, state = flow.authorization_url(
         access_type="offline",
-        prompt="consent"
+        # "offline" means we get a refresh token so we don't
+        # need the user to log in again every time
+        prompt = "consent"
     )
 
     # Save the Flow object keyed by state so we can complete the
@@ -151,12 +153,17 @@ async def google_callback(code: str, state: str):
         if state not in user_credentials or "flow" not in user_credentials[state]:
             raise Exception("Missing OAuth state. Please restart the login flow.")
 
+        # Re-use the Flow object created in /auth/google so the
+        # PKCE code_verifier is preserved.
         flow = user_credentials[state]["flow"]
         flow.fetch_token(code=code)
+        # Exchange the authorization code for actual credentials
 
         creds = flow.credentials
+        # Now we have real credentials we can use
 
         session_id = str(uuid.uuid4())
+        # Generate a unique ID for this user's session
 
         user_credentials[session_id] = {
             "token": creds.token,
@@ -166,18 +173,21 @@ async def google_callback(code: str, state: str):
             "client_secret": creds.client_secret,
             "scopes": list(creds.scopes) if creds.scopes else [],
         }
+        # Save the credentials using the session ID as the key
 
         # Clean up the temporary flow state entry
         user_credentials.pop(state, None)
 
         # Redirect back to the frontend with the session ID
+        # The frontend saves this and sends it with the confirm request
         return RedirectResponse(
             url=f"http://localhost:3000/confirm?session_id={session_id}&auth=success"
         )
 
     except Exception as e:
-        return RedirectResponse(
-            url=f"http://localhost:3000/confirm?auth=error&message={quote(str(e))}"
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "detail": str(e)}
         )
 
 
@@ -195,6 +205,7 @@ async def confirm_events(request: ConfirmRequest):
             )
 
         creds_data = user_credentials[request.session_id]
+        # Get the saved credentials for this user
 
         creds = Credentials(
             token=creds_data["token"],
@@ -204,6 +215,7 @@ async def confirm_events(request: ConfirmRequest):
             client_secret=creds_data["client_secret"],
             scopes=creds_data["scopes"],
         )
+        # Rebuild the credentials object from saved data
 
         from src.calendar_builder import create_calendar_events_with_creds
         create_calendar_events_with_creds(
@@ -217,7 +229,6 @@ async def confirm_events(request: ConfirmRequest):
         print(f"AUTH ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "detail": str(e)}
+        return RedirectResponse(
+            url=f"http://localhost:3000/confirm?auth=error&message={str(e)}"
         )
