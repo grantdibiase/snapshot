@@ -57,6 +57,9 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
       // Clean up the URL so it looks nice
       window.history.replaceState({}, "", "/confirm");
       // replaceState changes the URL without reloading the page
+      
+      console.log("[Confirmation] OAuth successful! Events:", events);
+      console.log("[Confirmation] Session ID:", sid);
     }
 
     if (auth === "error") {
@@ -116,6 +119,11 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     // --------------------------------------------------------
     if (!isAuthenticated || !sessionId) {
       setError("Please connect your Google Calendar first!");
+      return;
+    }
+
+    if (events.length === 0) {
+      setError("No events to add! Please upload screenshots first.");
       return;
     }
 

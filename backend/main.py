@@ -52,6 +52,39 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # In this demo it is fine for short-lived sessions.
 user_credentials = {}
 
+# Directory to persist session credentials
+SESSIONS_DIR = "sessions"
+os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+def save_session(session_id: str, creds_data: dict, events: list = None):
+    """Save credentials and optionally events to disk so they survive backend restart."""
+    try:
+        data_to_save = {"credentials": creds_data}
+        if events:
+            data_to_save["events"] = events
+            
+        with open(os.path.join(SESSIONS_DIR, f"{session_id}.json"), "w") as f:
+            json.dump(data_to_save, f)
+        print(f"[SESSION] Saved session {session_id} to disk")
+    except Exception as e:
+        print(f"[SESSION] Warning: Could not save session to disk: {e}")
+
+def load_session(session_id: str) -> dict:
+    """Load credentials from disk if they exist."""
+    try:
+        path = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                data = json.load(f)
+            
+            # Handle both old format (just creds) and new format (creds + events)
+            creds_data = data.get("credentials") if isinstance(data, dict) and "credentials" in data else data
+            print(f"[SESSION] Loaded session {session_id} from disk")
+            return creds_data
+    except Exception as e:
+        print(f"[SESSION] Warning: Could not load session from disk: {e}")
+    return None
+
 
 # --- DATA MODELS ---
 
@@ -118,15 +151,29 @@ async def upload_screenshots(files: List[UploadFile] = File(...)):
 
 
 @app.get("/auth/google")
-async def google_auth():
+async def google_auth(request: Request):
     # --------------------------------------------------------
     # Step 1 of OAuth — generate the Google login URL and
     # send it back to the frontend so it can redirect the user.
     # --------------------------------------------------------
+    
+    # Get the client's origin (hostname:port) to use in redirect
+    # This allows the app to work from localhost OR external IP
+    client_origin = request.headers.get("origin", "http://localhost:3000")
+    print(f"[AUTH] Client origin: {client_origin}")
+    
+    # Extract the hostname/port from origin and replace with backend port
+    # Works for any frontend port (3000, 3003, etc.)
+    from urllib.parse import urlparse
+    parsed = urlparse(client_origin)
+    hostname = parsed.hostname or "localhost"
+    callback_url = f"{parsed.scheme}://{hostname}:8000/auth/callback"
+    print(f"[AUTH] Callback URL: {callback_url}")
+    
     flow = Flow.from_client_secrets_file(
         "credentials.json",
         scopes=SCOPES,
-        redirect_uri="http://localhost:8000/auth/callback"
+        redirect_uri=callback_url
     )
 
     auth_url, state = flow.authorization_url(
@@ -142,21 +189,30 @@ async def google_auth():
 
 
 @app.get("/auth/callback")
-async def google_callback(code: str, state: str):
+async def google_callback(code: str, state: str, request: Request):
     # --------------------------------------------------------
     # Step 2 of OAuth — Google redirects the user back here
     # after they log in. We exchange the code for credentials.
     # --------------------------------------------------------
     try:
+        # Get the origin to redirect back to the same place the user came from
+        client_origin = request.headers.get("origin", "http://localhost:3000")
+        print(f"[CALLBACK] Client origin: {client_origin}")
+        print(f"[CALLBACK] Received code={code[:20]}..., state={state[:20]}...")
+        print(f"[CALLBACK] Available states in memory: {list(user_credentials.keys())[:3]}...")
+        
         if state not in user_credentials or "flow" not in user_credentials[state]:
             raise Exception("Missing OAuth state. Please restart the login flow.")
 
+        print(f"[CALLBACK] Found flow in memory, exchanging code for token...")
         flow = user_credentials[state]["flow"]
         flow.fetch_token(code=code)
+        print(f"[CALLBACK] ✓ Token exchange successful!")
 
         creds = flow.credentials
 
         session_id = str(uuid.uuid4())
+        print(f"[CALLBACK] Created session_id={session_id}")
 
         user_credentials[session_id] = {
             "token": creds.token,
@@ -167,17 +223,26 @@ async def google_callback(code: str, state: str):
             "scopes": list(creds.scopes) if creds.scopes else [],
         }
 
+        # Save to disk so it survives backend restart
+        save_session(session_id, user_credentials[session_id])
+
         # Clean up the temporary flow state entry
         user_credentials.pop(state, None)
+        print(f"[CALLBACK] ✓ Credentials stored in memory and on disk")
+        print(f"[CALLBACK] Redirecting to {client_origin}/confirm with session_id={session_id}")
 
         # Redirect back to the frontend with the session ID
         return RedirectResponse(
-            url=f"http://localhost:3000/confirm?session_id={session_id}&auth=success"
+            url=f"{client_origin}/confirm?session_id={session_id}&auth=success"
         )
 
     except Exception as e:
+        client_origin = request.headers.get("origin", "http://localhost:3000")
+        print(f"[CALLBACK] ✗ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return RedirectResponse(
-            url=f"http://localhost:3000/confirm?auth=error&message={quote(str(e))}"
+            url=f"{client_origin}/confirm?auth=error&message={quote(str(e))}"
         )
 
 
@@ -188,14 +253,33 @@ async def confirm_events(request: ConfirmRequest):
     # Uses the session_id to find their credentials.
     # --------------------------------------------------------
     try:
-        if request.session_id not in user_credentials:
+        print(f"\n[CONFIRM] Received confirm request with session_id={request.session_id[:20]}...")
+        print(f"[CONFIRM] Available sessions in memory: {list(user_credentials.keys())[:3]}...")
+        print(f"[CONFIRM] Event count: {len(request.events)}")
+        
+        # Validate that there are events to create
+        if len(request.events) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No events to add! Please upload screenshots first."
+            )
+        
+        # Try to find credentials in memory first
+        creds_data = user_credentials.get(request.session_id)
+        
+        # If not in memory, try to load from disk (in case backend restarted)
+        if not creds_data:
+            print(f"[CONFIRM] Session not in memory, trying to load from disk...")
+            creds_data = load_session(request.session_id)
+        
+        if not creds_data:
+            print(f"[CONFIRM] ✗ Session not found! Available: {list(user_credentials.keys())}")
             raise HTTPException(
                 status_code=401,
                 detail="Not authenticated. Please connect Google Calendar first."
             )
 
-        creds_data = user_credentials[request.session_id]
-
+        print(f"[CONFIRM] ✓ Session found, reconstructing credentials...")
         creds = Credentials(
             token=creds_data["token"],
             refresh_token=creds_data["refresh_token"],
@@ -206,20 +290,23 @@ async def confirm_events(request: ConfirmRequest):
         )
 
         from src.calendar_builder import create_calendar_events_with_creds
+        print(f"[CONFIRM] Calling create_calendar_events_with_creds...")
         create_calendar_events_with_creds(
             [event.dict() for event in request.events],
             creds
         )
 
+        print(f"[CONFIRM] ✓ Events created successfully!")
         return JSONResponse(content={"status": "success"})
 
     except Exception as e:
-        print(f"AUTH ERROR: {str(e)}")
+        error_msg = str(e)
+        print(f"[CONFIRM] ✗ ERROR: {error_msg}")
         import traceback
         traceback.print_exc()
         return JSONResponse(
             status_code=500,
-            content={"status": "error", "detail": str(e)}
+            content={"status": "error", "detail": error_msg}
         )
 
 
