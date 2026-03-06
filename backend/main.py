@@ -176,10 +176,12 @@ async def google_auth(request: Request):
     callback_url = f"{parsed.scheme}://{hostname}:8000/auth/callback"
     print(f"[AUTH] Callback URL: {callback_url}")
     
-    flow = Flow.from_client_secrets_file(
-        "credentials.json",
+    import json
+    credentials_info = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
+    Flow.from_client_config(
+        credentials_info,
         scopes=SCOPES,
-        redirect_uri=callback_url
+        redirect_uri=...
     )
 
     auth_url, state = flow.authorization_url(
