@@ -82,7 +82,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     try {
       localStorage.setItem("snapshot_events", JSON.stringify(events));
 
-      const response = await axios.get("http://localhost:8000/auth/google");
+      const response = await axios.get("https://snapshot-backend-j49i.onrender.com/auth/google");
       window.location.href = response.data.auth_url;
       // Redirect the user to Google's login page!
       // After they log in Google sends them back to our app.
@@ -131,7 +131,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     setError(null);
 
     try {
-      await axios.post("http://localhost:8000/confirm", {
+      await axios.post("https://snapshot-backend-j49i.onrender.com/confirm", {
         events,
         session_id: sessionId
         // Send session_id so backend knows whose calendar to use

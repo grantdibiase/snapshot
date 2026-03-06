@@ -110,7 +110,7 @@ function Upload({ onUploadComplete }) {
       });
 
       const response = await axios.post(
-        "http://localhost:8000/upload",
+        "https://snapshot-backend-j49i.onrender.com/upload",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
