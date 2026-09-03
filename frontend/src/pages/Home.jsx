@@ -28,10 +28,11 @@ import "./Home.css";
 
 function Home({ startAtStep }) {
   const [step, setStep] = useState(() => {
-    // Restore step from localStorage so we don't lose progress
-    // when the app reloads (e.g., after OAuth redirect).
+    // Only restore progress on /confirm, which is the OAuth return route.
+    // The home route should always be a fresh upload screen.
+    const isConfirmationRoute = window.location.pathname === "/confirm";
     const saved = window.localStorage.getItem("snapshot_step");
-    return saved ? Number(saved) : startAtStep || 1;
+    return isConfirmationRoute && saved ? Number(saved) : startAtStep || 1;
   });
   // "step" tracks which step we're on (1, 2, or 3)
 

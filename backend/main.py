@@ -34,6 +34,15 @@ from src.parser import parse_schedule
 
 app = FastAPI()
 
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app",
+).rstrip("/")
+BACKEND_URL = os.getenv(
+    "BACKEND_URL",
+    "https://snapshot-backend-j49i.onrender.com",
+).rstrip("/")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -43,6 +52,7 @@ app.add_middleware(
         "http://localhost:3003",
         "https://snapshot-cxv35vipn-grantdibiases-projects.vercel.app",
         "https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app",
+        FRONTEND_URL,
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -164,25 +174,23 @@ async def google_auth(request: Request):
     # send it back to the frontend so it can redirect the user.
     # --------------------------------------------------------
     
-    # Get the client's origin (hostname:port) to use in redirect
-    # This allows the app to work from localhost OR external IP
-    client_origin = request.headers.get("origin", "http://localhost:3000")
+    # Remember the frontend for the callback; Google will not send the
+    # browser's Origin header when it redirects back to this API.
+    client_origin = request.headers.get("origin", FRONTEND_URL).rstrip("/")
     print(f"[AUTH] Client origin: {client_origin}")
-    
-    # Extract the hostname/port from origin and replace with backend port
-    # Works for any frontend port (3000, 3003, etc.)
-    from urllib.parse import urlparse
-    parsed = urlparse(client_origin)
-    hostname = parsed.hostname or "localhost"
-    callback_url = f"{parsed.scheme}://{hostname}:8000/auth/callback"
+
+    callback_url = f"{BACKEND_URL}/auth/callback"
     print(f"[AUTH] Callback URL: {callback_url}")
-    
-    import json
-    credentials_info = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
-    Flow.from_client_config(
+
+    credentials_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+    if not credentials_json:
+        raise HTTPException(status_code=500, detail="GOOGLE_CREDENTIALS_JSON is not configured")
+
+    credentials_info = json.loads(credentials_json)
+    flow = Flow.from_client_config(
         credentials_info,
         scopes=SCOPES,
-        redirect_uri=...
+        redirect_uri=callback_url,
     )
 
     auth_url, state = flow.authorization_url(
@@ -192,7 +200,7 @@ async def google_auth(request: Request):
 
     # Save the Flow object keyed by state so we can complete the
     # OAuth handshake in the callback (PKCE requires the same flow).
-    user_credentials[state] = {"flow": flow}
+    user_credentials[state] = {"flow": flow, "client_origin": client_origin}
 
     return JSONResponse(content={"auth_url": auth_url, "state": state})
 
@@ -204,9 +212,7 @@ async def google_callback(code: str, state: str, request: Request):
     # after they log in. We exchange the code for credentials.
     # --------------------------------------------------------
     try:
-        # Get the origin to redirect back to the same place the user came from
-        client_origin = request.headers.get("origin", "http://localhost:3000")
-        print(f"[CALLBACK] Client origin: {client_origin}")
+        # Recover the frontend URL saved before redirecting to Google.
         print(f"[CALLBACK] Received code={code[:20]}..., state={state[:20]}...")
         print(f"[CALLBACK] Available states in memory: {list(user_credentials.keys())[:3]}...")
         
@@ -214,7 +220,10 @@ async def google_callback(code: str, state: str, request: Request):
             raise Exception("Missing OAuth state. Please restart the login flow.")
 
         print(f"[CALLBACK] Found flow in memory, exchanging code for token...")
-        flow = user_credentials[state]["flow"]
+        flow_state = user_credentials[state]
+        flow = flow_state["flow"]
+        client_origin = flow_state.get("client_origin", FRONTEND_URL)
+        print(f"[CALLBACK] Client origin: {client_origin}")
         flow.fetch_token(code=code)
         print(f"[CALLBACK] ✓ Token exchange successful!")
 
@@ -242,7 +251,7 @@ async def google_callback(code: str, state: str, request: Request):
 
         # Redirect back to the frontend with the session ID
         return RedirectResponse(
-            url=f"https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app/confirm?session_id={session_id}&auth=success"
+            url=f"{client_origin}/confirm?session_id={session_id}&auth=success"
         )
 
     except Exception as e:
@@ -251,7 +260,7 @@ async def google_callback(code: str, state: str, request: Request):
         traceback.print_exc()
 
         return RedirectResponse(
-            url=f"https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app/confirm?auth=error&message={str(e)}"
+            url=f"{FRONTEND_URL}/confirm?auth=error&message={quote(str(e))}"
         )
 
 
