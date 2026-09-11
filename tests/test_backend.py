@@ -25,6 +25,14 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(self.client.post('/confirm', json={'events': [{'title': 'Class'}], 'session_id': '../../credentials'}).status_code, 401)
     def test_debug_route_removed(self):
         self.assertEqual(self.client.post('/test/confirm', json={}).status_code, 404)
+    def test_production_frontend_cors(self):
+        response = self.client.options('/upload', headers={
+            'Origin': 'https://snapshot-ecru-six.vercel.app',
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['access-control-allow-origin'], 'https://snapshot-ecru-six.vercel.app')
     def test_untrusted_origin(self):
         self.assertEqual(self.client.get('/auth/google', headers={'origin': 'https://untrusted.example'}).status_code, 403)
     def test_cancelled_oauth(self):

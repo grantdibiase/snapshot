@@ -38,7 +38,7 @@ app = FastAPI()
 
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
-    "https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app",
+    "https://snapshot-ecru-six.vercel.app",
 ).rstrip("/")
 BACKEND_URL = os.getenv(
     "BACKEND_URL",
@@ -53,7 +53,7 @@ app.add_middleware(
         "http://localhost:3002",
         "http://localhost:3003",
         "https://snapshot-cxv35vipn-grantdibiases-projects.vercel.app",
-        "https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app",
+        "https://snapshot-ecru-six.vercel.app",
         FRONTEND_URL,
     ],
     allow_credentials=True,

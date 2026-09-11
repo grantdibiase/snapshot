@@ -11,6 +11,6 @@ services:
       - key: GOOGLE_CREDENTIALS_JSON
         sync: false
       - key: FRONTEND_URL
-        value: https://snapshot-5qjezf9yo-grantdibiases-projects.vercel.app
+        value: https://snapshot-ecru-six.vercel.app
       - key: BACKEND_URL
         value: https://snapshot-backend-j49i.onrender.com
