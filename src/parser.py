@@ -56,7 +56,7 @@ from rich.table import Table
 load_dotenv()
 # Load the .env file. Same as reader.py.
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from src.reader import get_client
 # Create our OpenAI connection. Same as reader.py.
 
 console = Console()
@@ -83,7 +83,7 @@ def parse_schedule(raw_text):
     # The [bold blue] tags are rich's way of adding color.
     # \n at the start just adds a blank line before the message.
 
-    response = client.chat.completions.create(
+    response = get_client().chat.completions.create(
         # Same as reader.py — we're sending a message to OpenAI.
 
         model="gpt-4o",

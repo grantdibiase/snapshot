@@ -44,7 +44,11 @@ load_dotenv()
 # After this line runs, Python can access your secret keys.
 # It must run BEFORE we try to use any of those keys below.
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_client():
+    key = os.getenv("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    return OpenAI(api_key=key)
 # This creates our connection to OpenAI.
 # os.getenv("OPENAI_API_KEY") goes into your .env file and
 # finds the line that says OPENAI_API_KEY=your-key-here
@@ -95,7 +99,7 @@ def extract_text_from_screenshot(image_path):
     # We give it the image path and it gives us back
     # the base64 version of the image, stored in base64_image.
 
-    response = client.chat.completions.create(
+    response = get_client().chat.completions.create(
         # This is where we actually talk to OpenAI.
         # "client.chat.completions.create" means:
         # "hey OpenAI, I want to send a message and get a reply"

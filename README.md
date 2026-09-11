@@ -32,6 +32,7 @@ This repository includes `render.yaml`. In Render, choose **New > Blueprint** an
 
 Set these Render environment variables:
 
+- `OPENAI_API_KEY`: the OpenAI API key used to read and parse screenshots. Store it as a secret. Without it the health endpoint still works, but uploads return HTTP 503.
 - `GOOGLE_CREDENTIALS_JSON`: the complete contents of `credentials.json` as one JSON value. Add it as a secret; do not commit it.
 - `FRONTEND_URL`: the exact deployed Vercel URL, without a trailing slash.
 - `BACKEND_URL`: the exact Render service URL, without a trailing slash.
@@ -39,3 +40,16 @@ Set these Render environment variables:
 In Google Cloud Console, add `https://<your-render-service>.onrender.com/auth/callback` as an authorized redirect URI for the OAuth client. After deployment, open the Render `/` URL first to confirm the service is running, then test upload and Google Calendar connection from the frontend.
 
 Render's default filesystem is temporary. The current app writes OAuth sessions to `sessions/`, so a restart or redeploy can invalidate existing sessions. That is acceptable for a demo, but production use should move session storage to a database or another durable store.
+
+OAuth login state is held in memory for ten minutes. Keep the current single-worker configuration; a restart during Google login requires reconnecting. `SESSIONS_DIR` can point to a mounted persistent disk for completed sessions.
+
+Free Render services sleep after 15 minutes without traffic and can take about a minute to wake. Choose a paid **service compute plan** to remove idle sleep; upgrading only the workspace plan does not remove it. Existing manually configured services must have the environment variables and health check (`/`) applied in the dashboard as well.
+
+## Backend regression checks
+
+```powershell
+pip install -r backend/requirements.txt httpx
+python -m unittest tests.test_backend -q
+```
+
+These tests mock screenshot processing and do not create Google Calendar events or call OpenAI. Uploads accept up to ten PNG/JPEG files, each at most 10 MB.

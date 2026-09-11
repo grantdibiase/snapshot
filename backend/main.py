@@ -8,13 +8,16 @@
 
 import os
 import sys
-import shutil
 import uuid
 import json
-from urllib.parse import quote
+import logging
+import tempfile
+import time
+from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +27,6 @@ from typing import List, Optional
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 
 from src.reader import extract_text_from_screenshot
 from src.parser import parse_schedule
@@ -59,7 +61,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "temp_uploads"
+UPLOAD_DIR = str(PROJECT_ROOT / "temp_uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
@@ -70,7 +72,7 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 user_credentials = {}
 
 # Directory to persist session credentials
-SESSIONS_DIR = "sessions"
+SESSIONS_DIR = os.getenv("SESSIONS_DIR", str(PROJECT_ROOT / "sessions"))
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 def save_session(session_id: str, creds_data: dict, events: list = None):
@@ -82,13 +84,14 @@ def save_session(session_id: str, creds_data: dict, events: list = None):
             
         with open(os.path.join(SESSIONS_DIR, f"{session_id}.json"), "w") as f:
             json.dump(data_to_save, f)
-        print(f"[SESSION] Saved session {session_id} to disk")
     except Exception as e:
         print(f"[SESSION] Warning: Could not save session to disk: {e}")
 
 def load_session(session_id: str) -> dict:
     """Load credentials from disk if they exist."""
     try:
+        if str(uuid.UUID(session_id)) != session_id:
+            return None
         path = os.path.join(SESSIONS_DIR, f"{session_id}.json")
         if os.path.exists(path):
             with open(path, "r") as f:
@@ -96,7 +99,6 @@ def load_session(session_id: str) -> dict:
             
             # Handle both old format (just creds) and new format (creds + events)
             creds_data = data.get("credentials") if isinstance(data, dict) and "credentials" in data else data
-            print(f"[SESSION] Loaded session {session_id} from disk")
             return creds_data
     except Exception as e:
         print(f"[SESSION] Warning: Could not load session from disk: {e}")
@@ -133,21 +135,32 @@ def root():
 
 
 @app.post("/upload")
-async def upload_screenshots(files: List[UploadFile] = File(...)):
+def upload_screenshots(files: List[UploadFile] = File(...)):
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
+
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Upload at most 10 screenshots.")
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=503, detail="Screenshot processing is not configured.")
 
     saved_paths = []
 
     try:
         for file in files:
-            unique_name = f"{uuid.uuid4()}_{file.filename}"
-            file_path = os.path.join(UPLOAD_DIR, unique_name)
-
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-
-            saved_paths.append(file_path)
+            suffix = Path(file.filename or "").suffix.lower()
+            if suffix not in {".png", ".jpg", ".jpeg"}:
+                raise HTTPException(status_code=415, detail="Upload PNG or JPEG screenshots.")
+            with tempfile.NamedTemporaryFile(dir=UPLOAD_DIR, suffix=suffix, delete=False) as buffer:
+                saved_paths.append(buffer.name)
+                size = 0
+                while chunk := file.file.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > 10 * 1024 * 1024:
+                        raise HTTPException(status_code=413, detail="Each screenshot must be 10 MB or smaller.")
+                    buffer.write(chunk)
+                if size == 0:
+                    raise HTTPException(status_code=400, detail="Screenshots must not be empty.")
 
         all_raw_text = ""
         for path in saved_paths:
@@ -158,8 +171,11 @@ async def upload_screenshots(files: List[UploadFile] = File(...)):
 
         return JSONResponse(content={"events": events})
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Screenshot processing failed")
+        raise HTTPException(status_code=502, detail="Unable to process screenshots. Please try again.")
 
     finally:
         for path in saved_paths:
@@ -168,7 +184,7 @@ async def upload_screenshots(files: List[UploadFile] = File(...)):
 
 
 @app.get("/auth/google")
-async def google_auth(request: Request):
+def google_auth(request: Request):
     # --------------------------------------------------------
     # Step 1 of OAuth — generate the Google login URL and
     # send it back to the frontend so it can redirect the user.
@@ -177,7 +193,8 @@ async def google_auth(request: Request):
     # Remember the frontend for the callback; Google will not send the
     # browser's Origin header when it redirects back to this API.
     client_origin = request.headers.get("origin", FRONTEND_URL).rstrip("/")
-    print(f"[AUTH] Client origin: {client_origin}")
+    if client_origin not in {FRONTEND_URL, "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003"}:
+        raise HTTPException(status_code=403, detail="Frontend origin is not allowed")
 
     callback_url = f"{BACKEND_URL}/auth/callback"
     print(f"[AUTH] Callback URL: {callback_url}")
@@ -200,54 +217,49 @@ async def google_auth(request: Request):
 
     # Save the Flow object keyed by state so we can complete the
     # OAuth handshake in the callback (PKCE requires the same flow).
-    user_credentials[state] = {"flow": flow, "client_origin": client_origin}
+    now = time.monotonic()
+    for key, value in list(user_credentials.items()):
+        if "flow" in value and now - value.get("created_at", 0) > 600:
+            user_credentials.pop(key, None)
+    user_credentials[state] = {"flow": flow, "client_origin": client_origin, "created_at": now}
 
     return JSONResponse(content={"auth_url": auth_url, "state": state})
 
 
 @app.get("/auth/callback")
-async def google_callback(code: str, state: str, request: Request):
+def google_callback(request: Request, state: str = "", code: str = "", error: str = ""):
     # --------------------------------------------------------
     # Step 2 of OAuth — Google redirects the user back here
     # after they log in. We exchange the code for credentials.
     # --------------------------------------------------------
     try:
         # Recover the frontend URL saved before redirecting to Google.
-        print(f"[CALLBACK] Received code={code[:20]}..., state={state[:20]}...")
-        print(f"[CALLBACK] Available states in memory: {list(user_credentials.keys())[:3]}...")
         
         if state not in user_credentials or "flow" not in user_credentials[state]:
             raise Exception("Missing OAuth state. Please restart the login flow.")
 
         print(f"[CALLBACK] Found flow in memory, exchanging code for token...")
-        flow_state = user_credentials[state]
+        flow_state = user_credentials.pop(state)
+        if time.monotonic() - flow_state["created_at"] > 600 or error or not code:
+            raise ValueError("Google login expired or was cancelled. Please reconnect.")
         flow = flow_state["flow"]
         client_origin = flow_state.get("client_origin", FRONTEND_URL)
         print(f"[CALLBACK] Client origin: {client_origin}")
         flow.fetch_token(code=code)
-        print(f"[CALLBACK] ✓ Token exchange successful!")
+        print(f"[CALLBACK] OK Token exchange successful!")
 
         creds = flow.credentials
 
         session_id = str(uuid.uuid4())
-        print(f"[CALLBACK] Created session_id={session_id}")
 
-        user_credentials[session_id] = {
-            "token": creds.token,
-            "refresh_token": creds.refresh_token,
-            "token_uri": creds.token_uri,
-            "client_id": creds.client_id,
-            "client_secret": creds.client_secret,
-            "scopes": list(creds.scopes) if creds.scopes else [],
-        }
+        user_credentials[session_id] = json.loads(creds.to_json())
 
         # Save to disk so it survives backend restart
         save_session(session_id, user_credentials[session_id])
 
         # Clean up the temporary flow state entry
         user_credentials.pop(state, None)
-        print(f"[CALLBACK] ✓ Credentials stored in memory and on disk")
-        print(f"[CALLBACK] Redirecting to {client_origin}/confirm with session_id={session_id}")
+        print(f"[CALLBACK] OK Credentials stored in memory and on disk")
 
         # Redirect back to the frontend with the session ID
         return RedirectResponse(
@@ -255,24 +267,22 @@ async def google_callback(code: str, state: str, request: Request):
         )
 
     except Exception as e:
-        print(f"[CALLBACK] ✗ ERROR: {str(e)}")
+        print(f"[CALLBACK] ERROR ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
 
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/confirm?auth=error&message={quote(str(e))}"
+            url=f"{FRONTEND_URL}/confirm?auth=error&message=Google%20login%20failed.%20Please%20reconnect."
         )
 
 
 @app.post("/confirm")
-async def confirm_events(request: ConfirmRequest):
+def confirm_events(request: ConfirmRequest):
     # --------------------------------------------------------
     # Creates all events in the user's Google Calendar.
     # Uses the session_id to find their credentials.
     # --------------------------------------------------------
     try:
-        print(f"\n[CONFIRM] Received confirm request with session_id={request.session_id[:20]}...")
-        print(f"[CONFIRM] Available sessions in memory: {list(user_credentials.keys())[:3]}...")
         print(f"[CONFIRM] Event count: {len(request.events)}")
         
         # Validate that there are events to create
@@ -291,81 +301,32 @@ async def confirm_events(request: ConfirmRequest):
             creds_data = load_session(request.session_id)
         
         if not creds_data:
-            print(f"[CONFIRM] ✗ Session not found! Available: {list(user_credentials.keys())}")
             raise HTTPException(
                 status_code=401,
                 detail="Not authenticated. Please connect Google Calendar first."
             )
 
-        print(f"[CONFIRM] ✓ Session found, reconstructing credentials...")
-        creds = Credentials(
-            token=creds_data["token"],
-            refresh_token=creds_data["refresh_token"],
-            token_uri=creds_data["token_uri"],
-            client_id=creds_data["client_id"],
-            client_secret=creds_data["client_secret"],
-            scopes=creds_data["scopes"],
-        )
+        print(f"[CONFIRM] OK Session found, reconstructing credentials...")
+        creds = Credentials.from_authorized_user_info(creds_data, scopes=SCOPES)
 
         from src.calendar_builder import create_calendar_events_with_creds
         print(f"[CONFIRM] Calling create_calendar_events_with_creds...")
         create_calendar_events_with_creds(
-            [event.dict() for event in request.events],
+            [event.model_dump() for event in request.events],
             creds
         )
 
-        print(f"[CONFIRM] ✓ Events created successfully!")
+        print(f"[CONFIRM] OK Events created successfully!")
         return JSONResponse(content={"status": "success"})
 
+    except HTTPException:
+        raise
     except Exception as e:
-        error_msg = str(e)
-        print(f"[CONFIRM] ✗ ERROR: {error_msg}")
+        error_msg = "Unable to create calendar events. Please reconnect Google Calendar and try again."
+        print(f"[CONFIRM] ERROR ERROR: {error_msg}")
         import traceback
         traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"status": "error", "detail": error_msg}
-        )
-
-
-# --- TEST ENDPOINT (for debugging without OAuth) ---
-
-@app.post("/test/confirm")
-async def test_confirm_events(request: ConfirmRequest):
-    # --------------------------------------------------------
-    # DEBUG ENDPOINT: Test event creation without OAuth flow.
-    # Uses the token.json file directly.
-    # Remove this endpoint in production!
-    # --------------------------------------------------------
-    try:
-        if not os.path.exists("token.json"):
-            raise Exception("token.json not found. Please authenticate first.")
-
-        with open("token.json", "r") as f:
-            token_data = json.load(f)
-
-        creds = Credentials(
-            token=token_data.get("token"),
-            refresh_token=token_data.get("refresh_token"),
-            token_uri=token_data.get("token_uri"),
-            client_id=token_data.get("client_id"),
-            client_secret=token_data.get("client_secret"),
-            scopes=token_data.get("scopes", SCOPES),
-        )
-
-        from src.calendar_builder import create_calendar_events_with_creds
-        create_calendar_events_with_creds(
-            [event.dict() for event in request.events],
-            creds
-        )
-
-        return JSONResponse(content={"status": "success"})
-
-    except Exception as e:
-        print(f"TEST ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "detail": str(e)}
         )
