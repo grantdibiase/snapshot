@@ -4,7 +4,7 @@ import Confirmation from './components/Confirmation';
 import Navbar from './components/Navbar';
 test('shows student branding', () => {
   render(<Navbar />);
-  expect(screen.getByText(/Stevens student edition/i)).toBeInTheDocument();
+  expect(screen.getByAltText(/Stevens Institute of Technology/)).toBeInTheDocument();
 });
 test('requires date review before importing, even after connecting', () => {
   sessionStorage.setItem('snapshot_session','test');

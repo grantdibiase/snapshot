@@ -211,7 +211,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
       )}
 
       <section className="semester-panel" aria-label="Semester dates">
-        <h2>Your semester, your dates.</h2>
+        <h2>Semester dates</h2>
         <p>Choose dates for all recurring classes. Check individual events below before importing.</p>
         <div className="semester-inputs">
           <label>Semester starts<input type="date" onChange={e => applySemester("semester_start", e.target.value)} /></label>

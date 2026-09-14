@@ -145,10 +145,9 @@ function Upload({ onUploadComplete }) {
 
       {/* Header */}
       <div className="upload-header">
-        <h1 className="upload-title">Start with a screenshot</h1>
+        <h1 className="upload-title">Upload your Workday schedule</h1>
         <p className="upload-subtitle">
-          Drop in screenshots of your class schedule, syllabus, or
-          semester calendar. Our AI will extract all your events automatically.
+          Upload clear screenshots with all course and meeting details visible.
         </p>
       </div>
 
@@ -226,7 +225,7 @@ function Upload({ onUploadComplete }) {
             Analyzing your schedule...
           </>
         ) : (
-          "Analyze Schedule ✨"
+          "Analyze Schedule"
         )}
       </button>
 
