@@ -1,0 +1,37 @@
+{
+  "lecture": {
+    "label": "Lecture",
+    "color": "#345bb5",
+    "google_id": "9"
+  },
+  "lab": {
+    "label": "Lab",
+    "color": "#087e8b",
+    "google_id": "7"
+  },
+  "recitation": {
+    "label": "Recitation",
+    "color": "#8550a5",
+    "google_id": "3"
+  },
+  "exam": {
+    "label": "Exam",
+    "color": "#bc302d",
+    "google_id": "11"
+  },
+  "assignment": {
+    "label": "Assignment",
+    "color": "#936b00",
+    "google_id": "5"
+  },
+  "office_hours": {
+    "label": "Office hours",
+    "color": "#23834b",
+    "google_id": "10"
+  },
+  "other": {
+    "label": "Other",
+    "color": "#667085",
+    "google_id": "8"
+  }
+}

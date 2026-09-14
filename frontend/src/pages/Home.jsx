@@ -32,7 +32,7 @@ function Home({ startAtStep }) {
     // The home route should always be a fresh upload screen.
     const isConfirmationRoute = window.location.pathname === "/confirm";
     const saved = window.localStorage.getItem("snapshot_step");
-    return isConfirmationRoute && saved ? Number(saved) : startAtStep || 1;
+    return isConfirmationRoute && new URLSearchParams(window.location.search).has("auth") ? 2 : isConfirmationRoute && saved ? Number(saved) : startAtStep || 1;
   });
   // "step" tracks which step we're on (1, 2, or 3)
 
@@ -90,6 +90,7 @@ function Home({ startAtStep }) {
   return (
     <div className="home">
 
+      {step === 1 && <section className="campus-hero"><div><p className="eyebrow">LESS ADMIN. MORE STEVENS.</p><h1>Your semester.<br/><em>In focus.</em></h1><p className="hero-copy">From a schedule screenshot to a week that makes sense. Make room for lectures, late-night labs, and everything in between.</p><div className="hero-tags"><span>01 / Capture</span><span>02 / Check</span><span>03 / Calendar</span></div></div><aside className="week-preview" aria-label="Example schedule preview"><div className="preview-heading"><span>A WEEK ON CASTLE POINT</span><span>EXAMPLE</span></div><div className="preview-days"><span>MON</span><span>TUE</span><span>WED</span></div><div className="preview-grid"><div className="preview-event lecture">09:00<br/><b>Lecture</b><small>Ideas start here.</small></div><div className="preview-event lab">11:00<br/><b>Lab</b><small>Make it real.</small></div><div className="preview-event exam">14:00<br/><b>Exam</b><small>You’ve got this.</small></div></div><p>One calendar. A little more clarity.</p></aside></section>}
       {/* Step indicator at the top showing progress */}
       <div className="steps-indicator">
         <div className={`step ${step >= 1 ? "active" : ""}`}>
@@ -138,6 +139,7 @@ function Home({ startAtStep }) {
         // Pass handleStartOver so the user can go back to step 1
       )}
 
+      <footer className="campus-footer"><span>Built for life at Castle Point.</span><span>Independent student tool · Not affiliated with Stevens Institute of Technology</span></footer>
     </div>
   );
 }

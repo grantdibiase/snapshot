@@ -30,6 +30,8 @@ from google.oauth2.credentials import Credentials
 
 from src.reader import extract_text_from_screenshot
 from src.parser import parse_schedule
+from src.event_types import event_type
+from datetime import date
 
 
 # --- SETUP ---
@@ -168,6 +170,8 @@ def upload_screenshots(files: List[UploadFile] = File(...)):
             all_raw_text += raw_text + "\n\n"
 
         events = parse_schedule(all_raw_text)
+        for event in events:
+            event["type"] = event_type(event)
 
         return JSONResponse(content={"events": events})
 
@@ -292,6 +296,16 @@ def confirm_events(request: ConfirmRequest):
                 detail="No events to add! Please upload screenshots first."
             )
         
+        for event in request.events:
+            if event.days and not event.date:
+                try:
+                    start = date.fromisoformat(event.semester_start or "")
+                    end = date.fromisoformat(event.semester_end or "")
+                    if end < start:
+                        raise ValueError()
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Set valid semester start and end dates for every recurring event.")
+
         # Try to find credentials in memory first
         creds_data = user_credentials.get(request.session_id)
         

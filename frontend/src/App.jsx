@@ -26,6 +26,7 @@ import Navbar from "./components/Navbar";
 // Import our Navbar so it shows on every page
 
 import "./App.css";
+import "./stevens.css";
 // Import our global styles
 
 function App() {

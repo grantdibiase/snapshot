@@ -20,6 +20,7 @@
 
 import os
 import datetime
+from src.event_types import EVENT_TYPES, event_type
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -80,13 +81,7 @@ def format_event_for_google(event):
     if event.get("location"):
         google_event["location"] = event["location"]
 
-    # Color code events by type so they stand out on your calendar
-    if event.get("type") == "exam":
-        google_event["colorId"] = "11"    # Red
-    elif event.get("type") == "assignment":
-        google_event["colorId"] = "5"     # Yellow
-    elif event.get("type") == "class":
-        google_event["colorId"] = "9"     # Blue
+    google_event["colorId"] = EVENT_TYPES[event_type(event)]["google_id"]
 
     today = datetime.date.today()
 
@@ -110,7 +105,7 @@ def format_event_for_google(event):
         else:
             # No time — make it an all day event
             google_event["start"] = {"date": date_str}
-            google_event["end"] = {"date": date_str}
+            google_event["end"] = {"date": str(datetime.date.fromisoformat(date_str) + datetime.timedelta(days=1))}
 
     elif event.get("days"):
         # --------------------------------------------------------
@@ -158,7 +153,7 @@ def format_event_for_google(event):
             first_occurrence = None
             for offset in range(7):
                 # Check each day starting from Monday of the semester week
-                candidate = monday_of_week + datetime.timedelta(days=offset)
+                candidate = semester_start + datetime.timedelta(days=offset)
                 candidate_day_name = candidate.strftime("%A").lower()
                 # strftime("%A") returns full day name e.g. "Monday", "Tuesday"
                 # .lower() converts to lowercase to match our event days list

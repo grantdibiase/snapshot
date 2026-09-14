@@ -40,7 +40,7 @@ function Success({ onStartOver }) {
       <div className="success-tips">
         <p className="success-tips-title">Tips</p>
         <ul>
-          <li>Events are color coded - blue for classes, red for exams, yellow for assignments</li>
+          <li>Events are color coded - blue lectures, teal labs, purple recitations, red exams, yellow assignments</li>
           <li>Recurring classes will repeat every week until the semester end date</li>
           <li>You can edit or delete any event directly in Google Calendar</li>
         </ul>

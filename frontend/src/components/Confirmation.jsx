@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import eventTypes from "../eventTypes.json";
 import { Pencil, Check, X, Calendar } from "lucide-react";
 import "./Confirmation.css";
 
@@ -18,10 +19,12 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(() => sessionStorage.getItem("snapshot_session"));
+  const [connecting, setConnecting] = useState(false);
+  const [datesReviewed, setDatesReviewed] = useState(false);
   // sessionId is what proves the user logged into Google.
   // We get it from the URL after Google redirects them back.
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(sessionStorage.getItem("snapshot_session")));
   // Tracks whether the user has connected Google Calendar yet.
 
   useEffect(() => {
@@ -51,6 +54,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
 
     if (sid && auth === "success") {
       setSessionId(sid);
+      sessionStorage.setItem("snapshot_session", sid);
       setIsAuthenticated(true);
       // User just came back from Google login successfully!
 
@@ -58,15 +62,13 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
       window.history.replaceState({}, "", "/confirm");
       // replaceState changes the URL without reloading the page
       
-      console.log("[Confirmation] OAuth successful! Events:", events);
-      console.log("[Confirmation] Session ID:", sid);
     }
 
     if (auth === "error") {
       const msg = params.get("message");
       setError(
         msg
-          ? `Google authentication failed: ${decodeURIComponent(msg)}`
+          ? `Google authentication failed: ${msg}`
           : "Google authentication failed. Please try again."
       );
     }
@@ -80,14 +82,18 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     // survive the redirect back from Google's login page.
     // --------------------------------------------------------
     try {
+      setConnecting(true);
+      setError(null);
       localStorage.setItem("snapshot_events", JSON.stringify(events));
+      localStorage.setItem("snapshot_step", "2");
 
       const response = await axios.get("https://snapshot-backend-j49i.onrender.com/auth/google");
       window.location.href = response.data.auth_url;
       // Redirect the user to Google's login page!
       // After they log in Google sends them back to our app.
     } catch (err) {
-      setError("Could not connect to Google. Make sure the backend is running!");
+      setConnecting(false);
+      setError(err.response?.data?.detail || "Google connection could not start. Wait a moment and try again.");
     }
   };
 
@@ -100,6 +106,8 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     const updatedEvents = [...events];
     updatedEvents[index] = { ...editForm };
     setEvents(updatedEvents);
+    setDatesReviewed(false);
+    localStorage.setItem("snapshot_events", JSON.stringify(updatedEvents));
     setEditingIndex(null);
   };
 
@@ -127,6 +135,10 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
       return;
     }
 
+    if (!datesReviewed || events.some(e => e.days?.length && !e.date && (!e.semester_start || !e.semester_end || e.semester_end < e.semester_start))) {
+      setError("Set semester dates for recurring events and confirm you reviewed the dates.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -141,6 +153,11 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
       onConfirmComplete();
 
     } catch (err) {
+      if (err.response?.status === 401) {
+        sessionStorage.removeItem("snapshot_session");
+        setSessionId(null);
+        setIsAuthenticated(false);
+      }
       setError(
         err.response?.data?.detail ||
         err.message ||
@@ -151,14 +168,12 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
     }
   };
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case "exam": return "#ef4444";
-      case "assignment": return "#f59e0b";
-      case "class": return "#6366f1";
-      case "office_hours": return "#10b981";
-      default: return "#71717a";
-    }
+  const getTypeColor = type => (eventTypes[type] || eventTypes.lecture).color;
+  const applySemester = (field, value) => {
+    const updated = events.map(e => e.days?.length && !e.date ? {...e, [field]: value} : e);
+    setEvents(updated);
+    localStorage.setItem("snapshot_events", JSON.stringify(updated));
+    setDatesReviewed(false);
   };
 
   return (
@@ -184,8 +199,8 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
               </p>
             </div>
           </div>
-          <button className="btn-connect-google" onClick={handleConnectGoogle}>
-            Connect Google Calendar
+          <button className="btn-connect-google" onClick={handleConnectGoogle} disabled={connecting}>
+            {connecting ? "Opening Google…" : "Connect Google Calendar"}
           </button>
         </div>
       ) : (
@@ -195,6 +210,17 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
         </div>
       )}
 
+      <section className="semester-panel" aria-label="Semester dates">
+        <h2>Your semester, your dates.</h2>
+        <p>Choose dates for all recurring classes. Check individual events below before importing.</p>
+        <div className="semester-inputs">
+          <label>Semester starts<input type="date" onChange={e => applySemester("semester_start", e.target.value)} /></label>
+          <label>Semester ends<input type="date" onChange={e => applySemester("semester_end", e.target.value)} /></label>
+        </div>
+        <label className="review-check"><input type="checkbox" checked={datesReviewed} onChange={e => setDatesReviewed(e.target.checked)} />I reviewed every event’s dates, including the year.</label>
+      </section>
+      <div className="color-legend">{Object.entries(eventTypes).map(([key, item]) => <span key={key}><i style={{background:item.color}} />{item.label}</span>)}</div>
+      <details className="auth-help"><summary>About connecting Google Calendar</summary><p>You’ll return here after signing in. Connecting gives Snapshot permission to add the events you confirm. During testing, Google may show an unverified-app warning; only continue if you recognize and trust this Snapshot app.</p></details>
       {/* Events Table */}
       <div className="events-table">
         {events.map((event, index) => (
@@ -214,10 +240,10 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
                   <div className="edit-field">
                     <label>Type</label>
                     <select
-                      value={editForm.type || ""}
+                      value={editForm.type === "class" ? "lecture" : editForm.type || "other"}
                       onChange={(e) => handleFormChange("type", e.target.value)}
                     >
-                      <option value="class">Class</option>
+                      <option value="lecture">Lecture</option><option value="lab">Lab</option><option value="recitation">Recitation</option>
                       <option value="exam">Exam</option>
                       <option value="assignment">Assignment</option>
                       <option value="office_hours">Office Hours</option>
@@ -303,7 +329,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
                     className="event-type-badge"
                     style={{ backgroundColor: getTypeColor(event.type) }}
                   >
-                    {event.type || "other"}
+                    {(eventTypes[event.type] || eventTypes.lecture).label}
                   </span>
                   <span className="event-title">{event.title}</span>
                 </div>
@@ -333,7 +359,7 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
                   )}
                 </div>
 
-                <button className="btn-edit" onClick={() => handleEdit(index)}>
+                <button aria-label={`Edit ${event.title}`} className="btn-edit" onClick={() => handleEdit(index)}>
                   <Pencil size={14} />
                 </button>
               </div>
@@ -343,13 +369,13 @@ function Confirmation({ events, setEvents, onConfirmComplete }) {
       </div>
 
       {error && (
-        <div className="confirmation-error">{error}</div>
+        <div role="alert" className="confirmation-error">{error}</div>
       )}
 
       <button
         className="btn-primary"
         onClick={handleConfirm}
-        disabled={loading || !isAuthenticated}
+        disabled={loading || !isAuthenticated || !datesReviewed || editingIndex !== null}
       >
         {loading ? (
           "Adding to Google Calendar..."

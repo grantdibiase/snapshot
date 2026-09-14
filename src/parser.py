@@ -107,12 +107,12 @@ def parse_schedule(raw_text):
                 - "end_time": end time in 12 hour format e.g. "10:00 AM" or null if unknown
                 - "location": room or building or null if unknown
                 - "professor": professor name or null if unknown
-                - "type": one of "class", "exam", "assignment", "office_hours", "other"
+                - "type": one of "lecture", "lab", "recitation", "exam", "assignment", "office_hours", "other"
                 - "semester_start": the first date of the semester e.g. "2025-01-13" or null if unknown
                 - "semester_end": the last date of the semester e.g. "2025-05-10" or null if unknown
                 
                 For recurring classes always try to find the semester start and end dates from the screenshot.
-                If you cannot find them, make a reasonable guess based on the current date and typical semester length.
+                If dates or years are not explicitly visible, return null. Never guess semester dates or copy example dates. Distinguish lectures, labs, and recitations using the title and schedule labels.
                 """
                 # This is a "system" message — it sets the rules for how
                 # the AI should behave for this entire conversation.

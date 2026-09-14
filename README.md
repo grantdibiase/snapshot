@@ -53,3 +53,11 @@ python -m unittest tests.test_backend -q
 ```
 
 These tests mock screenshot processing and do not create Google Calendar events or call OpenAI. Uploads accept up to ten PNG/JPEG files, each at most 10 MB.
+
+## Google consent screen and event review
+
+The sign-in flow redirects to Google and restores the session in the same browser tab. Expired server sessions prompt reconnection. The Google unverified-app warning cannot be removed in frontend code: configure the correct project in Google Auth Platform, set branding/support details, add test users under Audience while testing, and complete the applicable verification before public launch. Keep the authorized redirect URI set to the Render `/auth/callback` URL. Do not publish placeholder privacy-policy or terms pages.
+
+Recurring events require explicit semester dates. The parser leaves missing dates empty instead of guessing. Review the year before importing; these changes do not move existing 2024 calendar entries.
+
+Event category definitions are shared in `frontend/src/eventTypes.json`: lecture (blue), lab (teal), recitation (purple), exam (red), assignment (yellow), office hours (green), other (gray). Google renders its own palette for the corresponding color IDs. Existing events retain their previous colors until edited.

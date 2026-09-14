@@ -66,7 +66,9 @@ function Upload({ onUploadComplete }) {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "image/*": [] },
+    accept: { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] },
+    maxSize: 10 * 1024 * 1024,
+    onDropRejected: () => setError("Choose PNG or JPEG screenshots, each under 10 MB."),
     // Only accept image files (png, jpg, etc.)
     multiple: true,
     // Allow multiple files at once
@@ -88,6 +90,7 @@ function Upload({ onUploadComplete }) {
     // "async" means it can wait for the server response.
     // --------------------------------------------------------
 
+    if (files.length > 10) { setError("Choose at most 10 screenshots."); return; }
     if (files.length === 0) {
       setError("Please upload at least one screenshot first!");
       return;
@@ -127,7 +130,7 @@ function Upload({ onUploadComplete }) {
     } catch (err) {
       setError(
         err.response?.data?.detail ||
-        "Something went wrong. Make sure the backend is running!"
+        "Something went wrong. The server may be waking up. Wait a minute and retry."
       );
       // Show the error message from the server if available.
       // "?." is optional chaining — prevents crashes if response is null.
@@ -142,7 +145,7 @@ function Upload({ onUploadComplete }) {
 
       {/* Header */}
       <div className="upload-header">
-        <h1 className="upload-title">Upload Your Schedule</h1>
+        <h1 className="upload-title">Start with a screenshot</h1>
         <p className="upload-subtitle">
           Drop in screenshots of your class schedule, syllabus, or
           semester calendar. Our AI will extract all your events automatically.
@@ -160,7 +163,7 @@ function Upload({ onUploadComplete }) {
         <input {...getInputProps()} />
         {/* Hidden file input — dropzone manages this automatically */}
 
-        <UploadIcon size={40} color="#6366f1" />
+        <UploadIcon size={40} color="#a32638" />
 
         {isDragActive ? (
           <p className="dropzone-text">Drop your screenshots here!</p>
@@ -185,7 +188,7 @@ function Upload({ onUploadComplete }) {
               {/* key={index} is required by React when rendering lists.
                   It helps React track which items changed. */}
 
-              <ImageIcon size={16} color="#6366f1" />
+              <ImageIcon size={16} color="#a32638" />
               <span className="file-name">{file.name}</span>
               <span className="file-size">
                 {(file.size / 1024).toFixed(1)} KB
